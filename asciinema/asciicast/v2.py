@@ -1,22 +1,7 @@
-import os
-import subprocess
 import json
 import json.decoder
 import time
 import codecs
-
-try:
-    # Importing synchronize is to detect platforms where
-    # multiprocessing does not work (python issue 3770)
-    # and cause an ImportError. Otherwise it will happen
-    # later when trying to use Queue().
-    from multiprocessing import synchronize, Process, Queue
-except ImportError:
-    from threading import Thread as Process
-    from queue import Queue
-
-from asciinema.pty_recorder import PtyRecorder
-
 
 try:
     JSONDecodeError = json.decoder.JSONDecodeError
@@ -80,22 +65,35 @@ def get_duration(path):
             return last_frame[0]
 
 
+def build_header(width, height, metadata):
+    header = {'version': 2, 'width': width, 'height': height}
+    header.update(metadata)
+
+    assert 'width' in header, 'width missing in metadata'
+    assert 'height' in header, 'height missing in metadata'
+    assert type(header['width']) == int
+    assert type(header['height']) == int
+
+    if 'timestamp' in header:
+        assert type(header['timestamp']) == int or type(header['timestamp']) == float
+
+    return header
+
+
 class writer():
 
-    def __init__(self, path, width=None, height=None, header=None, mode='w', buffering=-1):
+    def __init__(self, path, metadata=None, append=False, buffering=1, width=None, height=None):
         self.path = path
-        self.mode = mode
         self.buffering = buffering
         self.stdin_decoder = codecs.getincrementaldecoder('UTF-8')('replace')
         self.stdout_decoder = codecs.getincrementaldecoder('UTF-8')('replace')
 
-        if mode == 'w':
-            self.header = {'version': 2, 'width': width, 'height': height}
-            self.header.update(header or {})
-            assert type(self.header['width']) == int, 'width or header missing'
-            assert type(self.header['height']) == int, 'height or header missing'
-        else:
+        if append:
+            self.mode = 'a'
             self.header = None
+        else:
+            self.mode = 'w'
+            self.header = build_header(width, height, metadata or {})
 
     def __enter__(self):
         self.file = open(self.path, mode=self.mode, buffering=self.buffering)
@@ -108,104 +106,21 @@ class writer():
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.file.close()
 
-    def write_event(self, ts, etype=None, data=None):
-        if etype is None:
-            ts, etype, data = ts
-
-        ts = round(ts, 6)
-
-        if etype == 'o':
-            if type(data) == str:
-                data = data.encode(encoding='utf-8', errors='strict')
-            text = self.stdout_decoder.decode(data)
-            self.__write_line([ts, etype, text])
-        elif etype == 'i':
-            if type(data) == str:
-                data = data.encode(encoding='utf-8', errors='strict')
-            text = self.stdin_decoder.decode(data)
-            self.__write_line([ts, etype, text])
-        else:
-            self.__write_line([ts, etype, data])
-
     def write_stdout(self, ts, data):
-        self.write_event(ts, 'o', data)
+        if type(data) == str:
+            data = data.encode(encoding='utf-8', errors='strict')
+        data = self.stdout_decoder.decode(data)
+        self.__write_event(ts, 'o', data)
 
     def write_stdin(self, ts, data):
-        self.write_event(ts, 'i', data)
+        if type(data) == str:
+            data = data.encode(encoding='utf-8', errors='strict')
+        data = self.stdin_decoder.decode(data)
+        self.__write_event(ts, 'i', data)
+
+    def __write_event(self, ts, etype, data):
+        self.__write_line([round(ts, 6), etype, data])
 
     def __write_line(self, obj):
         line = json.dumps(obj, ensure_ascii=False, indent=None, separators=(', ', ': '))
         self.file.write(line + '\n')
-
-
-def write_json_lines_from_queue(path, header, mode, queue):
-    with writer(path, header=header, mode=mode, buffering=1) as w:
-        for event in iter(queue.get, None):
-            w.write_event(event)
-
-
-class async_writer():
-
-    def __init__(self, path, header, rec_stdin, start_time_offset=0):
-        self.path = path
-        self.header = header
-        self.rec_stdin = rec_stdin
-        self.start_time_offset = start_time_offset
-        self.queue = Queue()
-
-    def __enter__(self):
-        mode = 'a' if self.start_time_offset > 0 else 'w'
-        self.process = Process(
-            target=write_json_lines_from_queue,
-            args=(self.path, self.header, mode, self.queue)
-        )
-        self.process.start()
-        self.start_time = time.time() - self.start_time_offset
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.queue.put(None)
-        self.process.join()
-
-    def write_stdin(self, data):
-        if self.rec_stdin:
-            ts = time.time() - self.start_time
-            self.queue.put([ts, 'i', data])
-
-    def write_stdout(self, data):
-        ts = time.time() - self.start_time
-        self.queue.put([ts, 'o', data])
-
-
-class Recorder:
-
-    def __init__(self, pty_recorder=None):
-        self.pty_recorder = pty_recorder if pty_recorder is not None else PtyRecorder()
-
-    def record(self, path, append, command, command_env, captured_env, rec_stdin, title, idle_time_limit):
-        start_time_offset = 0
-
-        if append and os.stat(path).st_size > 0:
-            start_time_offset = get_duration(path)
-
-        cols = int(subprocess.check_output(['tput', 'cols']))
-        lines = int(subprocess.check_output(['tput', 'lines']))
-
-        header = {
-            'version': 2,
-            'width': cols,
-            'height': lines,
-            'timestamp': int(time.time()),
-        }
-
-        if idle_time_limit is not None:
-            header['idle_time_limit'] = idle_time_limit
-
-        if captured_env:
-            header['env'] = captured_env
-
-        if title:
-            header['title'] = title
-
-        with async_writer(path, header, rec_stdin, start_time_offset) as w:
-            self.pty_recorder.record_command(['sh', '-c', command], w, command_env)

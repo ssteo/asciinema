@@ -9,7 +9,7 @@ _Note: This is README for `development` branch. [See the version for latest stab
 Terminal session recorder and the best companion of
 [asciinema.org](https://asciinema.org).
 
-[![demo](https://asciinema.org/a/113463.png)](https://asciinema.org/a/113463?autoplay=1)
+[![demo](https://asciinema.org/a/113463.svg)](https://asciinema.org/a/113463?autoplay=1)
 
 ## Quick intro
 
@@ -34,7 +34,7 @@ Or with normal speed but with idle time limited to 2 seconds:
 
 You can pass `-i 2` to `asciinema rec` as well, to set it permanently on a
 recording. Idle time limiting makes the recordings much more interesting to
-watch, try it.
+watch. Try it.
 
 If you want to watch and share it on the web, upload it:
 
@@ -49,10 +49,10 @@ You can record and upload in one step by omitting the filename:
 
     asciinema rec
 
-You'll be asked to confirm the upload when the recording is done, so nothing is
+You'll be asked to confirm the upload when the recording is done. Nothing is
 sent anywhere without your consent.
 
-These were the basics, but there's much more you can do. The following sections
+These are the basics, but there's much more you can do. The following sections
 cover installation, usage and hosting of the recordings in more detail.
 
 ## Installation
@@ -73,44 +73,10 @@ asciinema is included in repositories of most popular package managers on Mac OS
 X, Linux and FreeBSD. Look for package named `asciinema`. See the
 [list of available packages](https://asciinema.org/docs/installation).
 
-### Snap supported Linux distros
-
-If you run [Ubuntu or other snap supported Linux distribution](https://snapcraft.io/docs/core/install) you can
-install asciinema with:
-
-    snap install asciinema --classic
-
-The snap contains all necessary dependencies required to run asciinema, and will
-get automatically updated when a new version is pushed to the store.
-
-### Docker image
-
-asciinema Docker image is based on Ubuntu 16.04 and has the latest version of
-asciinema recorder pre-installed.
-
-    docker pull asciinema/asciinema
-
-When running it don't forget to allocate a pseudo-TTY (`-t`), keep STDIN open
-(`-i`) and mount config directory volume (`-v`):
-
-    docker run --rm -ti -v "$HOME/.config/asciinema":/root/.config/asciinema asciinema/asciinema
-
-Default command run in a container is `asciinema rec`.
-
-There's not much software installed in this image though. In most cases you may
-want to install extra programs before recording. One option is to derive new
-image from this one (start your custom Dockerfile with `FROM
-asciinema/asciinema`). Another option is to start the container with `/bin/bash`
-as the command, install extra packages and manually start `asciinema rec`:
-
-    docker run --rm -ti -v "$HOME/.config/asciinema":/root/.config/asciinema asciinema/asciinema /bin/bash
-    root@6689517d99a1:~# apt-get install foobar
-    root@6689517d99a1:~# asciinema rec
-
 ### Running latest version from source code checkout
 
-If none of the above works for you just clone the repo and run asciinema
-straight from the checkout.
+If you can't use Python package or native package for your OS is outdated you
+can clone the repo and run asciinema straight from the checkout.
 
 Clone the repo:
 
@@ -129,6 +95,32 @@ Then run it with:
 
     python3 -m asciinema --version
 
+### Docker image
+
+asciinema Docker image is based on Ubuntu 18.04 and has the latest version of
+asciinema recorder pre-installed.
+
+    docker pull asciinema/asciinema
+
+When running it don't forget to allocate a pseudo-TTY (`-t`), keep STDIN open
+(`-i`) and mount config directory volume (`-v`):
+
+    docker run --rm -ti -v "$HOME/.config/asciinema":/root/.config/asciinema asciinema/asciinema rec
+
+Container's entrypoint is set to `/usr/local/bin/asciinema` so you can run the
+container with any arguments you would normally pass to `asciinema` binary (see
+Usage section for commands and options).
+
+There's not much software installed in this image though. In most cases you may
+want to install extra programs before recording. One option is to derive new
+image from this one (start your custom Dockerfile with `FROM
+asciinema/asciinema`). Another option is to start the container with `/bin/bash`
+as the entrypoint, install extra packages and manually start `asciinema rec`:
+
+    docker run --rm -ti -v "$HOME/.config/asciinema":/root/.config/asciinema --entrypoint=/bin/bash asciinema/asciinema
+    root@6689517d99a1:~# apt-get install foobar
+    root@6689517d99a1:~# asciinema rec
+
 ## Usage
 
 asciinema is composed of multiple commands, similar to `git`, `apt-get` or
@@ -144,6 +136,11 @@ __Record terminal session.__
 By running `asciinema rec [filename]` you start a new recording session. The
 command (process) that is recorded can be specified with `-c` option (see
 below), and defaults to `$SHELL` which is what you want in most cases.
+
+You can temporarily pause recording of terminal by pressing <kbd>Ctrl+P</kbd>.
+This is useful when you want to execute some commands during the recording
+session that should not be captured (e.g. pasting secrets). Resume by pressing
+<kbd>Ctrl+P</kbd> again.
 
 Recording finishes when you exit the shell (hit <kbd>Ctrl+D</kbd> or type
 `exit`). If the recorded process is not a shell then recording finishes when
@@ -266,7 +263,7 @@ asked to log in first.
 Install ID is a random ID ([UUID
 v4](https://en.wikipedia.org/wiki/Universally_unique_identifier)) generated
 locally when you run asciinema for the first time, and saved at
-`$HOME/.config/asciinema/install-id`. It's purpose is to connect local machine
+`$HOME/.config/asciinema/install-id`. Its purpose is to connect local machine
 with uploaded recordings, so they can later be associated with asciinema.org
 account. This way we decouple uploading from account creation, allowing them to
 happen in any order.
@@ -365,10 +362,10 @@ If you want to contribute to this project check out
 ## Authors
 
 Developed with passion by [Marcin Kulik](http://ku1ik.com) and great open
-source [contributors](https://github.com/asciinema/asciinema/contributors)
+source [contributors](https://github.com/asciinema/asciinema/contributors).
 
 ## License
 
-Copyright &copy; 2011-2017 Marcin Kulik.
+Copyright &copy; 2011–2019 Marcin Kulik.
 
 All code is licensed under the GPL, v3 or later. See LICENSE file for details.

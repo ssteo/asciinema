@@ -4,19 +4,18 @@ from asciinema.api import APIError
 
 class UploadCommand(Command):
 
-    def __init__(self, api, filename):
-        Command.__init__(self)
-        self.api = api
-        self.filename = filename
+    def __init__(self, args, config, env):
+        Command.__init__(self, args, config, env)
+        self.filename = args.filename
 
     def execute(self):
         try:
-            url, warn = self.api.upload_asciicast(self.filename)
+            result, warn = self.api.upload_asciicast(self.filename)
 
             if warn:
                 self.print_warning(warn)
 
-            self.print(url)
+            self.print(result.get('message') or result['url'])
 
         except OSError as e:
             self.print_error("upload failed: %s" % str(e))
